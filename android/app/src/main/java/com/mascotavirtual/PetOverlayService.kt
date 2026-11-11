@@ -13,6 +13,32 @@ class PetOverlayService : Service() {
  private lateinit var wm: WindowManager
  private lateinit var params: WindowManager.LayoutParams
  private lateinit var duck: DuckView
+ private lateinit var promoView: PromoView
+ private lateinit var promoParams: WindowManager.LayoutParams
+ private var promoActive=false
+ private var promoX=0f
+ private var promoDirection=1f
+ private val promoHandler=Handler(Looper.getMainLooper())
+ private val promoLoop=object:Runnable { override fun run(){
+  if(promoActive){
+   promoX+=promoDirection*8f
+   promoView.invalidate()
+   val w=resources.displayMetrics.widthPixels
+   if((promoDirection>0&&promoX>w+420)||(promoDirection<0&&promoX< -420)){
+    promoActive=false;promoView.invalidate();schedulePromo()
+   } else promoHandler.postDelayed(this,32)
+  }
+ } }
+ private fun schedulePromo(){
+  promoHandler.postDelayed({startPromo()},(7*60_000L+Random.nextLong(8*60_000L)))
+ }
+ private fun startPromo(){
+  if(promoActive)return
+  promoActive=true
+  promoDirection=if(Random.nextBoolean())1f else -1f
+  promoX=if(promoDirection>0)-420f else resources.displayMetrics.widthPixels+420f
+  promoHandler.post(promoLoop)
+ }
  private val handler=Handler(Looper.getMainLooper())
  private var vx=5f
  private var vy=0f
@@ -35,7 +61,14 @@ class PetOverlayService : Service() {
   duck=DuckView()
   val type=if(Build.VERSION.SDK_INT>=26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
   params=WindowManager.LayoutParams(144,132,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;x=80;y=260}
-  try{wm.addView(duck,params);handler.postDelayed(loop,500)}catch(_:Exception){stopSelf()}
+  try{
+   wm.addView(duck,params)
+   promoView=PromoView()
+   val fullType=if(Build.VERSION.SDK_INT>=26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
+   promoParams=WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT,fullType,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}
+   wm.addView(promoView,promoParams)
+   handler.postDelayed(loop,500);schedulePromo()
+  }catch(_:Exception){stopSelf()}
  }
  private fun step(){
   if(dragging)return
@@ -59,7 +92,24 @@ class PetOverlayService : Service() {
   try{wm.updateViewLayout(duck,params)}catch(_:Exception){}
  }
  override fun onStartCommand(intent:Intent?,flags:Int,startId:Int)=START_STICKY
- override fun onDestroy(){handler.removeCallbacks(loop);try{wm.removeView(duck)}catch(_:Exception){};super.onDestroy()}
+ override fun onDestroy(){handler.removeCallbacks(loop);promoHandler.removeCallbacksAndMessages(null);try{wm.removeView(duck);wm.removeView(promoView)}catch(_:Exception){};super.onDestroy()}
+
+ inner class PromoView:View(this@PetOverlayService){
+  private val p=Paint(Paint.ANTI_ALIAS_FLAG)
+  override fun onDraw(canvas:Canvas){
+   super.onDraw(canvas);if(!promoActive)return
+   val y=height-92f
+   val runnerFirst=promoDirection<0
+   val left=if(runnerFirst)promoX+82f else promoX
+   val right=if(runnerFirst)promoX+390f else promoX+308f
+   p.color=Color.rgb(246,222,145);canvas.drawRoundRect(left,y+18f,right,y+58f,9f,9f,p)
+   p.color=Color.rgb(111,70,28);p.style=Paint.Style.STROKE;p.strokeWidth=2.5f;canvas.drawRoundRect(left,y+18f,right,y+58f,9f,9f,p);p.style=Paint.Style.FILL
+   p.color=Color.rgb(55,38,20);p.textSize=23f;p.typeface=Typeface.create("sans-serif",Typeface.BOLD)
+   canvas.drawText("Creado por Miguel Cedillo",left+12f,y+45f,p)
+   p.textSize=43f;canvas.drawText("🐑",if(runnerFirst)promoX else promoX+307f,y+53f,p)
+  }
+ }
+
 
  inner class DuckView:View(this@PetOverlayService){
   val paint=Paint(Paint.ANTI_ALIAS_FLAG)
