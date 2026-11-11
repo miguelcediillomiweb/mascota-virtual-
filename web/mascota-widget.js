@@ -4,8 +4,8 @@
 (()=>{'use strict';
 if(window.__mascotaVirtualLoaded)return;window.__mascotaVirtualLoaded=true;
 const css=`
-#mv-pet{position:fixed;z-index:2147483000;left:15vw;top:65vh;width:92px;height:88px;border:0;padding:0;background:transparent;cursor:grab;touch-action:none;image-rendering:pixelated;filter:drop-shadow(0 5px 2px #0003);transform-origin:50% 85%;user-select:none}
-#mv-pet svg{width:100%;height:100%;overflow:visible}
+#mv-pet{position:fixed;z-index:2147483000;left:15vw;top:65vh;width:92px;height:88px;border:0;padding:0;background:transparent;cursor:grab;touch-action:none;image-rendering:pixelated;filter:drop-shadow(0 5px 2px #0003);transform-origin:50% 85%;user-select:none;pointer-events:none}
+#mv-pet svg{width:100%;height:100%;overflow:visible;pointer-events:none}#mv-pet svg *{pointer-events:visiblePainted}
 #mv-pet .mv-shadow{position:absolute;left:22px;bottom:-1px;width:48px;height:8px;border-radius:50%;background:#0003;z-index:-1}
 #mv-pet.mv-walk svg{animation:mv-bob .32s infinite alternate}
 #mv-pet.mv-run svg{animation:mv-run .14s infinite alternate}
@@ -36,7 +36,7 @@ const style=document.createElement('style');style.textContent=css;document.head.
 const pet=document.createElement('button');pet.id='mv-pet';pet.type='button';pet.setAttribute('aria-label','Mascota virtual: tocar para despertarla o moverla');
 pet.innerHTML=`<span class="mv-speech"></span><svg viewBox="0 0 128 112" aria-hidden="true"><g fill="#e99a58" stroke="#171522" stroke-width="4"><path d="M38 88Q27 101 38 104L57 104Q65 99 51 94Z"/><path d="M79 91Q70 103 83 105L102 102Q109 97 91 92Z"/></g><path d="M18 48Q18 16 55 18Q82 7 101 34Q119 48 110 76Q104 99 69 99L34 91Q11 82 18 48Z" fill="#f7ed8a" stroke="#171522" stroke-width="5"/><path d="M91 51Q111 38 122 51Q116 64 96 64Z" fill="#f3a66b" stroke="#171522" stroke-width="4"/><path d="M82 38Q91 26 104 38Q112 48 103 62L90 68L80 57Z" fill="#f5bd8e" stroke="#171522" stroke-width="4"/><ellipse cx="94" cy="51" rx="8" ry="11" fill="white" stroke="#171522" stroke-width="3"/><circle cx="97" cy="52" r="4" fill="#171522"/><path d="M38 31Q42 8 70 8L94 12L101 24L78 25L55 30Z" fill="#c14ee0" stroke="#171522" stroke-width="5"/><path d="M36 32L101 30L104 38L42 43Z" fill="#8b32bd" stroke="#171522" stroke-width="4"/></svg><span class="mv-shadow"></span>`;
 document.body.appendChild(pet);
-const speech=pet.querySelector('.mv-speech');let x=innerWidth*.15,y=innerHeight*.65,vx=1,mode='walk',busy=false,drag=false,lastX=0,lastY=0,oldTouch=0;
+const speech=pet.querySelector('.mv-speech');let x=innerWidth*.15,y=innerHeight*.65,vx=1,mode='walk',busy=false,drag=false,lastX=0,lastY=0,dragVX=0,dragVY=0,lastMoveAt=0,falling=false,fallRAF=0,oldTouch=0;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function place(){x=clamp(x,0,innerWidth-100);y=clamp(y,24,innerHeight-100);pet.style.left=x+'px';pet.style.top=y+'px';pet.style.transform=vx<0?'scaleX(-1)':''}
 function say(s){speech.textContent=s;setTimeout(()=>{if(speech.textContent===s)speech.textContent=''},1500)}
@@ -85,9 +85,26 @@ else if(r<.96){await action('hide')}
 else await action('rocket');
 place();if(!busy)setTimeout(wander,900+Math.random()*2300)
 }
-pet.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY;pet.setPointerCapture(e.pointerId);});
-pet.addEventListener('pointermove',e=>{if(!drag)return;x+=e.clientX-lastX;y+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;place()});
-pet.addEventListener('pointerup',()=>{drag=false;if(mode==='sleep'){setMode('jump');say('¡Desperté!');setTimeout(()=>setMode('walk'),650)}else{setMode('walk');say('¡Hola!')}});
+function stopFall(){falling=false;if(fallRAF)cancelAnimationFrame(fallRAF)}
+function startFall(){
+ stopFall();falling=true;let vy=Math.max(2,dragVY*.45),vxFall=dragVX*.35,prev=performance.now();
+ setMode('fall');
+ const frame=now=>{if(!falling||drag)return;const dt=Math.min(2,(now-prev)/16.67);prev=now;
+  x+=vxFall*dt;y+=vy*dt;vy+=.72*dt;vxFall*=.992;
+  const floor=innerHeight-100;
+  if(y>=floor){y=floor;vy=-Math.max(2,Math.abs(vy)*.48);vxFall*=.72;
+   if(Math.abs(vy)<2.4){vy=0;falling=false;setMode('stunned');say('¡Vaya aterrizaje!');setTimeout(()=>{if(!drag){setMode('walk');busy=false}},650);place();return;}
+  }
+  if(x<=0||x>=innerWidth-100){x=clamp(x,0,innerWidth-100);vxFall*=-.65}
+  place();fallRAF=requestAnimationFrame(frame);
+ };
+ fallRAF=requestAnimationFrame(frame);
+}
+pet.addEventListener('pointerdown',e=>{stopFall();drag=true;busy=true;lastX=e.clientX;lastY=e.clientY;dragVX=0;dragVY=0;lastMoveAt=performance.now();pet.setPointerCapture(e.pointerId);setMode('wake');});
+pet.addEventListener('pointermove',e=>{if(!drag)return;const now=performance.now(),dt=Math.max(1,now-lastMoveAt);dragVX=(e.clientX-lastX)/dt*16;dragVY=(e.clientY-lastY)/dt*16;x+=e.clientX-lastX;y+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;lastMoveAt=now;place()});
+function releasePet(){if(!drag)return;drag=false;startFall()}
+pet.addEventListener('pointerup',releasePet);
+pet.addEventListener('pointercancel',releasePet);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!busy)wander()});
 addEventListener('resize',place);place();setTimeout(wander,1800);
 })();
