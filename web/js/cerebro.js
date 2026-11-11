@@ -5,7 +5,7 @@ const labels={walk:['Explorando','Está curioseando por aquí.'],run:['¡A toda 
 function render(s,msg){state=s;pet.className='pet '+s;status.textContent=labels[s]?.[0]||s;detail.textContent=msg||labels[s]?.[1]||''}
 function place(){pet.style.left=x+'%';pet.style.top=y+'%';pet.style.transform=dir<0?'scaleX(-1)':''}
 function say(t){speech.textContent=t||'';if(t)setTimeout(()=>{if(speech.textContent===t)speech.textContent=''},1700)}
-function effect(kind){const el=document.createElement('span');el.className='effect '+kind;el.style.setProperty('--x',Math.max(2,Math.min(88,x))+'');if(kind==='grass')el.textContent='🌱';effects.append(el);setTimeout(()=>el.remove(),5200)}
+function effect(kind){const el=document.createElement('span');el.className='effect '+kind;el.style.setProperty('--x',Math.max(2,Math.min(88,x))+'%');if(kind==='grass')el.textContent='🌱';effects.append(el);setTimeout(()=>el.remove(),5200)}
 function moveTo(nx,ny,speed=1){x=Math.max(2,Math.min(88,nx));y=Math.max(30,Math.min(78,ny));place()}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
 async function act(s,duration=1800){if(paused||drag)return;clearTimeout(timer);render(s);if(s==='eat'){effect('grass');say('ñam ñam');}if(s==='drink'){effect('puddle');say('glu glu');}if(s==='pee'){effect('pee');say('¡Ahhh!');}if(s==='rocket'){say('¡Despegando!');const tr=document.createElement('span');tr.className='effect rocket-trail';tr.textContent='🚀';effects.append(tr);setTimeout(()=>tr.remove(),3000)}
