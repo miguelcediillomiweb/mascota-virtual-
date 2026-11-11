@@ -35,7 +35,26 @@ const css=`
 const style=document.createElement('style');style.textContent=css;document.head.appendChild(style);
 const pet=document.createElement('button');pet.id='mv-pet';pet.type='button';pet.setAttribute('aria-label','Mascota virtual: tocar para despertarla o moverla');
 pet.innerHTML=`<span class="mv-speech"></span><svg viewBox="0 0 128 112" aria-hidden="true"><g fill="#e99a58" stroke="#171522" stroke-width="4"><path d="M38 88Q27 101 38 104L57 104Q65 99 51 94Z"/><path d="M79 91Q70 103 83 105L102 102Q109 97 91 92Z"/></g><path d="M18 48Q18 16 55 18Q82 7 101 34Q119 48 110 76Q104 99 69 99L34 91Q11 82 18 48Z" fill="#f7ed8a" stroke="#171522" stroke-width="5"/><path d="M91 51Q111 38 122 51Q116 64 96 64Z" fill="#f3a66b" stroke="#171522" stroke-width="4"/><path d="M82 38Q91 26 104 38Q112 48 103 62L90 68L80 57Z" fill="#f5bd8e" stroke="#171522" stroke-width="4"/><ellipse cx="94" cy="51" rx="8" ry="11" fill="white" stroke="#171522" stroke-width="3"/><circle cx="97" cy="52" r="4" fill="#171522"/><path d="M38 31Q42 8 70 8L94 12L101 24L78 25L55 30Z" fill="#c14ee0" stroke="#171522" stroke-width="5"/><path d="M36 32L101 30L104 38L42 43Z" fill="#8b32bd" stroke="#171522" stroke-width="4"/></svg><span class="mv-shadow"></span>`;
+
 document.body.appendChild(pet);
+/* Identidad local del compañero: solo se conserva en este navegador. */
+let mvPerson=localStorage.getItem('mv_person')||'',mvPetName=localStorage.getItem('mv_pet_name')||'';
+function mvWelcome(){
+ const panel=document.createElement('div');
+ panel.style.cssText='position:fixed;z-index:2147483002;left:50%;top:50%;transform:translate(-50%,-50%);width:min(310px,calc(100vw - 36px));padding:18px;border-radius:18px;background:#fff;color:#25304a;box-shadow:0 12px 40px #0004;font:15px system-ui,sans-serif';
+ panel.innerHTML='<b style="font-size:19px">🐏 Soy tu compañero</b><p>¡Hola! ¿Cuál es tu nombre?</p><input id="mv-person" placeholder="Tu nombre" maxlength="24" style="box-sizing:border-box;width:100%;padding:11px;border:1px solid #ccd3df;border-radius:9px;font:inherit"><p>¿Y tú quieres ponerme un nombre?</p><input id="mv-petname" placeholder="Mi nombre (opcional)" maxlength="24" style="box-sizing:border-box;width:100%;padding:11px;border:1px solid #ccd3df;border-radius:9px;font:inherit"><button id="mv-save" style="margin-top:12px;width:100%;padding:11px;border:0;border-radius:10px;background:#263b65;color:white;font-weight:700">¡Vamos a conocernos!</button>';
+ document.body.appendChild(panel);
+ panel.querySelector('#mv-save').onclick=()=>{const p=panel.querySelector('#mv-person').value.trim(),n=panel.querySelector('#mv-petname').value.trim();if(!p){panel.querySelector('#mv-person').focus();return}mvPerson=p;mvPetName=n||'Compañero';try{localStorage.setItem('mv_person',mvPerson);localStorage.setItem('mv_pet_name',mvPetName)}catch(e){}panel.remove();say('¡Hola '+mvPerson+'! Soy tu compañero 🐏')};
+}
+if(!mvPerson)setTimeout(mvWelcome,1200);
+function mvOccasionalHello(){
+ if(!mvPerson||document.hidden||busy)return;
+ const hour=new Date().getHours();
+ const messages=hour>=21?['Hola '+mvPerson+', recuerda descansar. Mañana será otro día 💤','Ya es tarde, '+mvPerson+'. ¡A dormir!']:['Hola '+mvPerson+', ¿cómo va tu día?','¡Hola '+mvPerson+'! ¿Ya viste la hora? No se te haga tarde ⏰','Paso a saludarte, '+mvPerson+' 😊'];
+ say(messages[Math.floor(Math.random()*messages.length)]);
+}
+setInterval(()=>{if(Math.random()<.32)mvOccasionalHello()},22*60*1000);
+
 const speech=pet.querySelector('.mv-speech');let x=innerWidth*.15,y=innerHeight*.65,vx=1,mode='walk',busy=false,drag=false,lastX=0,lastY=0,dragVX=0,dragVY=0,lastMoveAt=0,falling=false,fallRAF=0,oldTouch=0;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function place(){x=clamp(x,0,innerWidth-100);y=clamp(y,24,innerHeight-100);pet.style.left=x+'px';pet.style.top=y+'px';pet.style.transform=vx<0?'scaleX(-1)':''}
