@@ -4,10 +4,9 @@
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
- <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="Mascota Virtual" android:usesCleartextTraffic="false">
+ <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="Mi mascota virtual" android:icon="@drawable/ic_pet" android:usesCleartextTraffic="false">
   <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
-  <service android:name=".PetOverlayService" android:exported="false" android:foregroundServiceType="specialUse">
-   <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-enabled floating desktop pet overlay"/>
-  </service>
+  <service android:name=".PetOverlayService" android:exported="false" android:foregroundServiceType="specialUse"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-enabled floating companion pet"/></service>
+  <service android:name=".PetNotificationListener" android:label="Avisos de Mi mascota virtual" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true"><intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter></service>
  </application>
 </manifest>
