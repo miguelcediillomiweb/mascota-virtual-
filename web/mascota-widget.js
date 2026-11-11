@@ -21,6 +21,15 @@ const css=`
 #mv-pet.mv-rocket:after{content:'🚀';position:absolute;left:18px;top:40px;font-size:42px;z-index:-1}
 .mv-effect{position:fixed;z-index:2147482999;pointer-events:none;font-size:27px}
 .mv-speech{position:absolute;top:-20px;left:50%;font:16px system-ui;white-space:nowrap;color:inherit;text-shadow:0 1px 3px #fff}
+#mv-credit-run{position:fixed;z-index:2147483001;bottom:12px;left:0;display:flex;align-items:center;pointer-events:none;white-space:nowrap;filter:drop-shadow(0 3px 3px #0004);font-family:system-ui,sans-serif}
+#mv-credit-run.mv-credit-ltr{animation:mv-credit-ltr var(--mv-duration) linear forwards}
+#mv-credit-run.mv-credit-rtl{animation:mv-credit-rtl var(--mv-duration) linear forwards}
+#mv-credit-run .mv-credit-pet{font-size:42px;line-height:1;z-index:2}
+#mv-credit-run .mv-credit-ribbon{background:linear-gradient(180deg,#fff5c7,#f4d77a);color:#38250a;border:2px solid #7b4b17;padding:7px 13px;font-weight:800;font-size:14px;transform-origin:left center;animation:mv-credit-unroll .65s ease-out both}
+#mv-credit-run.mv-credit-rtl .mv-credit-ribbon{transform-origin:right center}
+@keyframes mv-credit-ltr{from{transform:translateX(-120%)}to{transform:translateX(105vw)}}
+@keyframes mv-credit-rtl{from{transform:translateX(105vw)}to{transform:translateX(-120%)}}
+@keyframes mv-credit-unroll{from{clip-path:inset(0 100% 0 0);opacity:.6}to{clip-path:inset(0 0 0 0);opacity:1}}
 @keyframes mv-bob{to{transform:translateY(-4px) rotate(-2deg)}}@keyframes mv-run{to{transform:translateY(-7px) rotate(8deg)}}@keyframes mv-sleep{50%{transform:translateY(3px) scaleY(.94)}}@keyframes mv-peck{to{transform:rotate(15deg) translateY(5px)}}@keyframes mv-drink{to{transform:rotate(18deg) translateY(5px)}}@keyframes mv-fall{to{transform:rotate(95deg) translateY(50px)}}@keyframes mv-jump{50%{transform:translateY(-75px) rotate(-10deg)}to{transform:translateY(0)}}@keyframes mv-launch{to{transform:translate(90px,-110vh) rotate(35deg);opacity:0}}
 `;
 const style=document.createElement('style');style.textContent=css;document.head.appendChild(style);
@@ -34,6 +43,19 @@ function say(s){speech.textContent=s;setTimeout(()=>{if(speech.textContent===s)s
 function setMode(s){mode=s;pet.className='mv-'+s}
 function effect(s,emoji){const e=document.createElement('span');e.className='mv-effect';e.textContent=emoji;e.style.left=x+'px';e.style.top=(y+55)+'px';document.body.appendChild(e);setTimeout(()=>e.remove(),4200)}
 const wait=t=>new Promise(r=>setTimeout(r,t));
+let creditTimer=0;
+function creatorFlyby(){
+ if(document.hidden||document.getElementById('mv-credit-run'))return;
+ const ltr=Math.random()<.5,fly=document.createElement('div');
+ fly.id='mv-credit-run';fly.className=ltr?'mv-credit-ltr':'mv-credit-rtl';
+ fly.style.setProperty('--mv-duration',Math.max(7,innerWidth/95)+'s');
+ const runner=document.createElement('span');runner.className='mv-credit-pet';runner.textContent='🐑';
+ const ribbon=document.createElement('span');ribbon.className='mv-credit-ribbon';ribbon.textContent='Creado por Miguel Cedillo';
+ if(ltr)fly.append(ribbon,runner);else fly.append(runner,ribbon);
+ document.body.appendChild(fly);fly.addEventListener('animationend',()=>fly.remove(),{once:true});
+}
+function scheduleCredit(){creditTimer=setTimeout(()=>{creatorFlyby();scheduleCredit()},(7+Math.random()*8)*60*1000)}
+scheduleCredit();
 async function action(s){if(busy)return;busy=true;setMode(s);
 if(s==='eat'){effect('grass','🌱');say('ñam ñam');}
 if(s==='drink'){effect('puddle','💧');say('glu glu');}
