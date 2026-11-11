@@ -60,14 +60,17 @@ class PetOverlayService : Service() {
   if(screenWidth>screenHeight){duck.visibility=View.GONE;return}else duck.visibility=View.VISIBLE
   ticks++
   if(mode=="sleep"){if(ticks>95){mode="walk";ticks=0;vx=if(Random.nextBoolean())5f else -5f};duck.mode=mode;duck.invalidate();try{wm.updateViewLayout(duck,params)}catch(_:Exception){};return}
-  if(mode in listOf("walk","run","rocket","fall","stunned","eat","drink","pee","bath","jump","hang")){
+  if(mode in listOf("walk","run","rocket","fall","stunned","eat","drink","pee","bath","jump","hang","abduct")){
    params.x+=(vx*(if(mode=="run")2.8f else 1f)).toInt()
    params.y+=vy.toInt()
    val width=resources.displayMetrics.widthPixels
    val height=resources.displayMetrics.heightPixels
    if(mode!="rocket"&&(params.x<0||params.x>width-params.width)){vx=-vx;duck.flip=vx<0}
+   if(mode=="abduct" && ticks in 25..62) params.y-=2.2f
+   if(mode=="abduct" && ticks in 63..91) params.y-=9f
+   if(mode=="abduct" && ticks>91){mode="walk";ticks=0;params.y=((height*.46f).toInt()-params.height).coerceAtLeast(25);vx=if(Random.nextBoolean())5f else -5f}
    if(mode=="rocket"&&params.y < -150){params.y=(height*.34f).toInt();params.x=Random.nextInt(20,(width-params.width).coerceAtLeast(21));mode="walk";charredUntil=System.currentTimeMillis()+3200L;vx=if(Random.nextBoolean())5f else -5f}
-   if(mode=="walk"&&ticks%70==0){val r=Random.nextInt(100);mode=when{r<12->"sleep";r<23->"eat";r<33->"drink";r<43->"pee";r<51->"bath";r<63->"run";r<73->"jump";r<82->"hang";r<90->"rocket";else->"walk"};ticks=0;if(mode=="rocket"){vx=0f;vy=-13f}else if(mode=="run"){vx=if(vx<0)-10f else 10f}else{vy=0f}}
+   if(mode=="walk"&&ticks%70==0){val r=Random.nextInt(100);mode=when{r<12->"sleep";r<23->"eat";r<33->"drink";r<43->"pee";r<51->"bath";r<63->"run";r<73->"jump";r<82->"hang";r<90->"rocket";r<96->"abduct";else->"walk"};ticks=0;if(mode=="rocket"){vx=0f;vy=-13f}else if(mode=="run"){vx=if(vx<0)-10f else 10f}else{vy=0f}}
    if(mode=="run"&&ticks>22){mode="walk";vx=if(vx<0)-5f else 5f;ticks=0}
    if(mode=="rocket"&&ticks%7==0)params.y-=8
    if(mode in listOf("sleep","eat","drink","pee","bath","jump","hang")&&ticks>38){mode="walk";ticks=0;vy=0f}
@@ -101,6 +104,15 @@ class PetOverlayService : Service() {
    if(weatherMood=="hot"){paint.textSize=25f;paint.color=Color.rgb(30,150,220);c.drawText("💦",100f,35f,paint);c.drawText("💦",17f,47f,paint)}
    if(weatherMood=="sun"){paint.textSize=23f;c.drawText("☀",99f,20f,paint)}
    if(mode=="rocket"){paint.textSize=48f;c.drawText("🚀",35f,78f,paint);paint.textSize=26f;c.drawText("🪖",45f,25f,paint);c.restoreToCount(save);return}
+   if(mode=="abduct"){
+    val pulse=(System.currentTimeMillis()/180L%2L)==0L
+    paint.color=Color.argb(if(pulse)105 else 70,90,210,255)
+    val beam=Path().apply{moveTo(39f,28f);lineTo(89f,28f);lineTo(112f,105f);lineTo(16f,105f);close()};c.drawPath(beam,paint)
+    paint.color=Color.rgb(110,205,255);c.drawOval(40f,4f,88f,35f,paint)
+    paint.color=Color.rgb(75,90,125);c.drawOval(17f,19f,111f,43f,paint)
+    paint.color=Color.rgb(180,220,245);c.drawOval(38f,12f,90f,34f,paint)
+    paint.color=Color.rgb(255,235,110);for(x in listOf(30f,48f,64f,80f,98f))c.drawCircle(x,34f,3.2f,paint)
+   }
    if(flip){c.scale(-1f,1f,64f,56f)}
    if(mode=="eat"){paint.textSize=23f;c.drawText("🌱",10f,103f,paint)}
    if(mode=="drink"){oval(c,Color.rgb(90,205,236),5f,94f,56f,105f)}
