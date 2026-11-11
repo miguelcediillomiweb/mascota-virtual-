@@ -30,7 +30,7 @@ class MainActivity : Activity() {
    getSharedPreferences("pet",0).edit().putString("person",p).putString("petName",n.ifBlank{"Compañero"}).apply()
    Toast.makeText(this,"¡Mucho gusto, $p!",Toast.LENGTH_SHORT).show()
   }
-  layout.addView(TextView(this).apply { text="\nPara que pueda acompañarte incluso cuando cambies de aplicación, activa estos permisos. Android siempre te pedirá confirmarlos."; textSize=15f })
+  layout.addView(TextView(this).apply { text="\nPara que pueda acompañarte incluso cuando cambies de aplicación, activa estos permisos. La mascota será completamente transparente al tacto: no podrás arrastrarla, pero tampoco bloqueará botones ni teclas del teclado."; textSize=15f })
   addButton("1 · Permitir aparecer sobre otras aplicaciones") {
    if(!Settings.canDrawOverlays(this)) startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName")))
    else Toast.makeText(this,"Permiso de superposición concedido",Toast.LENGTH_SHORT).show()
@@ -48,10 +48,6 @@ class MainActivity : Activity() {
    if(!Settings.canDrawOverlays(this)){Toast.makeText(this,"Primero activa la superposición",Toast.LENGTH_LONG).show();return@addButton}
    if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),requestNotifications);return@addButton}
    startPet()
-  }
-  addButton("Agarrar y mover (15 segundos)") {
-   val i=Intent(this,PetOverlayService::class.java).setAction("ENABLE_DRAG_MODE")
-   if(Build.VERSION.SDK_INT>=26)startForegroundService(i) else startService(i)
   }
   setContentView(ScrollView(this).apply{addView(layout)})
  }
