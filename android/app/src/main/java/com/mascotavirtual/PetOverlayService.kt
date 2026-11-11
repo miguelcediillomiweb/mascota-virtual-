@@ -2,44 +2,96 @@ package com.mascotavirtual
 
 import android.app.*
 import android.content.Intent
-import android.graphics.PixelFormat
-import android.os.Build
-import android.os.IBinder
+import android.graphics.*
+import android.os.*
 import android.provider.Settings
 import android.view.*
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import kotlin.random.Random
 
 class PetOverlayService : Service() {
- private var windowManager: WindowManager? = null
- private var petView: WebView? = null
- override fun onBind(intent: Intent?): IBinder? = null
- override fun onCreate() {
+ private lateinit var wm: WindowManager
+ private lateinit var params: WindowManager.LayoutParams
+ private lateinit var duck: DuckView
+ private val handler=Handler(Looper.getMainLooper())
+ private var vx=5f
+ private var vy=0f
+ private var mode="walk"
+ private var ticks=0
+ private var dragging=false
+ private var lastRawX=0f
+ private var lastRawY=0f
+ private val loop=object:Runnable { override fun run(){ step(); handler.postDelayed(this,45) } }
+
+ override fun onBind(intent:Intent?):IBinder?=null
+ override fun onCreate(){
   super.onCreate()
-  val channelId="mascota_activa"
-  if (Build.VERSION.SDK_INT >= 26) {
-   val channel=NotificationChannel(channelId,"Mascota virtual",NotificationManager.IMPORTANCE_LOW)
-   getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-  }
-  val notification=if(Build.VERSION.SDK_INT>=26) Notification.Builder(this,channelId) else Notification.Builder(this)
-   .setContentTitle("Mascota Virtual").setContentText("Tu mascota está paseando por la pantalla.")
-   .setSmallIcon(android.R.drawable.ic_menu_compass).build()
-  startForeground(7,notification)
-  if (!Settings.canDrawOverlays(this)) { stopSelf(); return }
-  windowManager=getSystemService(WINDOW_SERVICE) as WindowManager
-  petView=WebView(this).apply {
-   setBackgroundColor(android.graphics.Color.TRANSPARENT)
-   settings.javaScriptEnabled=true
-   settings.domStorageEnabled=true
-   webViewClient=WebViewClient()
-   loadUrl("file:///android_asset/pet/index.html?overlay=1")
-  }
+  val channel="mascota_activa"
+  if(Build.VERSION.SDK_INT>=26) getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(channel,"Mascota virtual",NotificationManager.IMPORTANCE_LOW))
+  val nb=if(Build.VERSION.SDK_INT>=26) Notification.Builder(this,channel) else Notification.Builder(this)
+  startForeground(7,nb.setContentTitle("Mascota Virtual").setContentText("Tu mascota está paseando por la pantalla.").setSmallIcon(android.R.drawable.ic_menu_compass).build())
+  if(!Settings.canDrawOverlays(this)){stopSelf();return}
+  wm=getSystemService(WINDOW_SERVICE) as WindowManager
+  duck=DuckView()
   val type=if(Build.VERSION.SDK_INT>=26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-  val params=WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT,type,
-   WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-   PixelFormat.TRANSLUCENT)
-  try { windowManager?.addView(petView,params) } catch (_: Exception) { stopSelf() }
+  params=WindowManager.LayoutParams(144,132,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;x=80;y=260}
+  try{wm.addView(duck,params);handler.postDelayed(loop,500)}catch(_:Exception){stopSelf()}
  }
- override fun onStartCommand(intent: Intent?, flags: Int, startId: Int)=START_STICKY
- override fun onDestroy() { try { if(petView!=null) windowManager?.removeView(petView) } catch (_:Exception) {}; petView?.destroy(); petView=null; super.onDestroy() }
+ private fun step(){
+  if(dragging)return
+  ticks++
+  if(mode=="walk"||mode=="run"||mode=="rocket"){
+   params.x+=(vx*(if(mode=="run")2.8f else 1f)).toInt()
+   params.y+=vy.toInt()
+   val width=resources.displayMetrics.widthPixels
+   val height=resources.displayMetrics.heightPixels
+   if(mode!="rocket"&&(params.x<0||params.x>width-144)){vx=-vx;duck.flip=vx<0}
+   if(mode=="rocket"&&params.y < -150){params.y=height-260;params.x=Random.nextInt(20,(width-160).coerceAtLeast(21));mode="walk";vx=if(Random.nextBoolean())5f else -5f}
+   if(mode=="walk"&&ticks%70==0){val r=Random.nextInt(100);mode=when{r<13->"sleep";r<26->"eat";r<37->"drink";r<48->"pee";r<62->"run";r<73->"jump";r<83->"hang";r<91->"rocket";else->"walk"};ticks=0;if(mode=="rocket"){vx=0f;vy=-13f}else if(mode=="run"){vx=if(vx<0)-10f else 10f}else{vy=0f}}
+   if(mode=="run"&&ticks>22){mode="walk";vx=if(vx<0)-5f else 5f;ticks=0}
+   if(mode=="rocket"&&ticks%7==0)params.y-=8
+   if(mode in listOf("sleep","eat","drink","pee","jump","hang")&&ticks>38){mode="walk";ticks=0;vy=0f}
+   if(mode=="jump")params.y-=if(ticks<18)5 else -5
+   if(mode=="hang"&&ticks>25){mode="fall";ticks=0}
+   if(mode=="fall"){params.y+=10;if(ticks>18){mode="walk";ticks=0}}
+  }
+  duck.mode=mode;duck.invalidate()
+  try{wm.updateViewLayout(duck,params)}catch(_:Exception){}
+ }
+ override fun onStartCommand(intent:Intent?,flags:Int,startId:Int)=START_STICKY
+ override fun onDestroy(){handler.removeCallbacks(loop);try{wm.removeView(duck)}catch(_:Exception){};super.onDestroy()}
+
+ inner class DuckView:View(this@PetOverlayService){
+  val paint=Paint(Paint.ANTI_ALIAS_FLAG)
+  var mode="walk";var flip=false
+  private fun oval(c:Canvas,color:Int,l:Float,t:Float,r:Float,b:Float){paint.color=color;c.drawOval(l,t,r,b,paint)}
+  override fun onDraw(canvas:Canvas){
+   super.onDraw(canvas);val c=canvas;val save=c.save();c.scale(width/128f,height/112f)
+   if(mode=="rocket"){paint.textSize=48f;c.drawText("🚀",35f,78f,paint);paint.textSize=26f;c.drawText("🪖",45f,25f,paint);c.restoreToCount(save);return}
+   if(flip){c.scale(-1f,1f,64f,56f)}
+   if(mode=="eat"){paint.textSize=23f;c.drawText("🌱",10f,103f,paint)}
+   if(mode=="drink"){oval(c,Color.rgb(90,205,236),5f,94f,56f,105f)}
+   if(mode=="pee"){oval(c,Color.rgb(226,216,112),9f,98f,43f,105f)}
+   val bob=if(mode=="walk"||mode=="run") kotlin.math.sin(System.currentTimeMillis()/85.0).toFloat()*3 else 0f
+   c.save();c.translate(0f,bob)
+   oval(c,Color.rgb(235,151,81),31f,83f,62f,106f);oval(c,Color.rgb(235,151,81),76f,83f,108f,106f)
+   oval(c,Color.rgb(247,235,137),12f,13f,111f,99f)
+   paint.color=Color.rgb(244,166,105);val bill=Path().apply{moveTo(94f,48f);quadTo(121f,37f,126f,52f);quadTo(116f,66f,94f,62f);close()};c.drawPath(bill,paint)
+   oval(c,Color.rgb(245,190,142),79f,30f,111f,69f)
+   if(mode=="sleep"){paint.color=Color.BLACK;paint.strokeWidth=3f;c.drawLine(88f,50f,99f,50f,paint);paint.textSize=16f;c.drawText("Z",103f,20f,paint)}
+   else{oval(c,Color.WHITE,86f,39f,103f,60f);oval(c,Color.BLACK,94f,44f,101f,57f)}
+   paint.color=Color.rgb(193,76,222);val cap=Path().apply{moveTo(35f,33f);quadTo(42f,3f,75f,8f);lineTo(101f,18f);lineTo(103f,32f);lineTo(35f,41f);close()};c.drawPath(cap,paint)
+   paint.color=Color.rgb(133,48,180);c.drawRect(35f,31f,104f,39f,paint)
+   if(mode=="hang"){c.rotate(85f,64f,20f)}
+   if(mode=="fall"||mode=="stunned")c.rotate(80f,64f,65f)
+   c.restore();c.restoreToCount(save)
+  }
+  override fun onTouchEvent(e:android.view.MotionEvent):Boolean{
+   when(e.action){
+    MotionEvent.ACTION_DOWN->{dragging=true;lastRawX=e.rawX;lastRawY=e.rawY;mode="wake";invalidate();return true}
+    MotionEvent.ACTION_MOVE->{params.x+=(e.rawX-lastRawX).toInt();params.y+=(e.rawY-lastRawY).toInt();lastRawX=e.rawX;lastRawY=e.rawY;try{wm.updateViewLayout(this,params)}catch(_:Exception){};return true}
+    MotionEvent.ACTION_UP->{dragging=false;mode="run";vx=if(Random.nextBoolean())8f else -8f;ticks=0;return true}
+   };return true
+  }
+ }
 }
