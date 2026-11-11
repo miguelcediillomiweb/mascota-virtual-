@@ -22,3 +22,7 @@ La mascota puede insertarse en otras páginas con:
 ```
 
 El archivo `web/mascota-widget.js` crea una mascota flotante autónoma, sin sonidos ni servicios externos. Es una primera implementación del componente reutilizable.
+
+
+## Firma animada del creador
+La mascota realiza de forma ocasional un recorrido por la parte inferior de la pantalla, alternando aleatoriamente izquierda-derecha y derecha-izquierda. Mientras corre, despliega una banderola con el texto **Creado por Miguel Cedillo** y al terminar desaparece. En web se reutiliza el SVG del personaje principal. En Android se muestra mediante una capa superpuesta no táctil, independiente de la mascota.
