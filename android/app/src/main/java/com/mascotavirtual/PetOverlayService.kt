@@ -55,6 +55,9 @@ class PetOverlayService : Service() {
   }catch(_:Exception){stopSelf()}
  }
  private fun step(){
+  val screenWidth=resources.displayMetrics.widthPixels
+  val screenHeight=resources.displayMetrics.heightPixels
+  if(screenWidth>screenHeight){duck.visibility=View.GONE;return}else duck.visibility=View.VISIBLE
   ticks++
   if(mode=="sleep"){if(ticks>95){mode="walk";ticks=0;vx=if(Random.nextBoolean())5f else -5f};duck.mode=mode;duck.invalidate();try{wm.updateViewLayout(duck,params)}catch(_:Exception){};return}
   if(mode in listOf("walk","run","rocket","fall","stunned","eat","drink","pee","bath","jump","hang")){
