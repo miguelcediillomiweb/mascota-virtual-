@@ -47,6 +47,16 @@ class PetOverlayService : Service() {
  private var dragging=false
  private var lastRawX=0f
  private var lastRawY=0f
+ private var dragVelocityX=0f
+ private var dragVelocityY=0f
+ private val dragModeHandler=Handler(Looper.getMainLooper())
+ private val disableDragMode=Runnable { setDragMode(false) }
+ private fun setDragMode(enabled:Boolean){
+  if(!::params.isInitialized)return
+  if(enabled){params.flags=params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv();dragModeHandler.removeCallbacks(disableDragMode);dragModeHandler.postDelayed(disableDragMode,15_000L)}
+  else{dragging=false;params.flags=params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;dragModeHandler.removeCallbacks(disableDragMode)}
+  try{wm.updateViewLayout(duck,params)}catch(_:Exception){}
+ }
  private val loop=object:Runnable { override fun run(){ step(); handler.postDelayed(this,45) } }
 
  override fun onBind(intent:Intent?):IBinder?=null
@@ -60,7 +70,7 @@ class PetOverlayService : Service() {
   wm=getSystemService(WINDOW_SERVICE) as WindowManager
   duck=DuckView()
   val type=if(Build.VERSION.SDK_INT>=26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-  params=WindowManager.LayoutParams(144,132,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;x=80;y=260}
+  params=WindowManager.LayoutParams(144,132,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;x=80;y=260}
   try{
    wm.addView(duck,params)
    promoView=PromoView()
@@ -73,7 +83,7 @@ class PetOverlayService : Service() {
  private fun step(){
   if(dragging)return
   ticks++
-  if(mode=="walk"||mode=="run"||mode=="rocket"){
+  if(mode=="walk"||mode=="run"||mode=="rocket"||mode=="fall"||mode=="stunned"){
    params.x+=(vx*(if(mode=="run")2.8f else 1f)).toInt()
    params.y+=vy.toInt()
    val width=resources.displayMetrics.widthPixels
@@ -86,13 +96,24 @@ class PetOverlayService : Service() {
    if(mode in listOf("sleep","eat","drink","pee","jump","hang")&&ticks>38){mode="walk";ticks=0;vy=0f}
    if(mode=="jump")params.y-=if(ticks<18)5 else -5
    if(mode=="hang"&&ticks>25){mode="fall";ticks=0}
-   if(mode=="fall"){params.y+=10;if(ticks>18){mode="walk";ticks=0}}
+   if(mode=="fall"){
+    vy=(vy+0.85f).coerceAtMost(22f);params.y+=vy.toInt()
+    val floor=height-params.height-24
+    if(params.y>=floor){params.y=floor;vy=-vy*0.42f
+     if(kotlin.math.abs(vy)<2.2f){vy=0f;mode="stunned";ticks=0}
+    }
+    if(params.x<0||params.x>width-params.width){params.x=params.x.coerceIn(0,width-params.width);vx=-vx*.65f}
+   }
+   if(mode=="stunned"&&ticks>18){mode="walk";ticks=0;vy=0f}
   }
   duck.mode=mode;duck.invalidate()
   try{wm.updateViewLayout(duck,params)}catch(_:Exception){}
  }
- override fun onStartCommand(intent:Intent?,flags:Int,startId:Int)=START_STICKY
- override fun onDestroy(){handler.removeCallbacks(loop);promoHandler.removeCallbacksAndMessages(null);try{wm.removeView(duck);wm.removeView(promoView)}catch(_:Exception){};super.onDestroy()}
+ override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
+  if(intent?.action=="ENABLE_DRAG_MODE")setDragMode(true)
+  return START_STICKY
+ }
+ override fun onDestroy(){handler.removeCallbacks(loop);dragModeHandler.removeCallbacksAndMessages(null);promoHandler.removeCallbacksAndMessages(null);try{wm.removeView(duck);wm.removeView(promoView)}catch(_:Exception){};super.onDestroy()}
 
  inner class PromoView:View(this@PetOverlayService){
   private val p=Paint(Paint.ANTI_ALIAS_FLAG)
@@ -138,9 +159,9 @@ class PetOverlayService : Service() {
   }
   override fun onTouchEvent(e:android.view.MotionEvent):Boolean{
    when(e.action){
-    MotionEvent.ACTION_DOWN->{dragging=true;lastRawX=e.rawX;lastRawY=e.rawY;mode="wake";invalidate();return true}
-    MotionEvent.ACTION_MOVE->{params.x+=(e.rawX-lastRawX).toInt();params.y+=(e.rawY-lastRawY).toInt();lastRawX=e.rawX;lastRawY=e.rawY;try{wm.updateViewLayout(this,params)}catch(_:Exception){};return true}
-    MotionEvent.ACTION_UP->{dragging=false;mode="run";vx=if(Random.nextBoolean())8f else -8f;ticks=0;return true}
+    MotionEvent.ACTION_DOWN->{dragging=true;lastRawX=e.rawX;lastRawY=e.rawY;dragVelocityX=0f;dragVelocityY=0f;mode="wake";invalidate();return true}
+    MotionEvent.ACTION_MOVE->{val dx=e.rawX-lastRawX;val dy=e.rawY-lastRawY;dragVelocityX=dx;dragVelocityY=dy;params.x+=dx.toInt();params.y+=dy.toInt();lastRawX=e.rawX;lastRawY=e.rawY;try{wm.updateViewLayout(this,params)}catch(_:Exception){};return true}
+    MotionEvent.ACTION_UP,MotionEvent.ACTION_CANCEL->{dragging=false;mode="fall";vx=(dragVelocityX*.35f).coerceIn(-14f,14f);vy=(dragVelocityY*.35f).coerceIn(4f,20f);ticks=0;return true}
    };return true
   }
  }
