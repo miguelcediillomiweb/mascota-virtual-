@@ -69,7 +69,7 @@ function creatorFlyby(){
  fly.id='mv-credit-run';fly.className=ltr?'mv-credit-ltr':'mv-credit-rtl';
  fly.style.setProperty('--mv-duration',Math.max(7,innerWidth/95)+'s');
  const runner=document.createElement('span');runner.className='mv-credit-pet';runner.innerHTML=pet.querySelector('svg').outerHTML;
- const ribbon=document.createElement('span');ribbon.className='mv-credit-ribbon';ribbon.textContent='Creado por Miguel Cedillo';
+ const ribbon=document.createElement('span');ribbon.className='mv-credit-ribbon';ribbon.textContent='Creado por Cedillo';
  if(ltr)fly.append(ribbon,runner);else fly.append(runner,ribbon);
  document.body.appendChild(fly);fly.addEventListener('animationend',()=>fly.remove(),{once:true});
 }
