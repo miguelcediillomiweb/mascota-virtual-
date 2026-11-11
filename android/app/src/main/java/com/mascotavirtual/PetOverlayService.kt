@@ -154,7 +154,10 @@ class PetOverlayService : Service() {
   private fun oval(c:Canvas,color:Int,l:Float,t:Float,r:Float,b:Float){paint.color=color;c.drawOval(l,t,r,b,paint)}
   override fun onDraw(canvas:Canvas){
    super.onDraw(canvas);val c=canvas;val save=c.save();c.scale(width/128f,height/112f)
-   if(weatherMood=="rain"){paint.textSize=28f;paint.color=Color.BLUE;c.drawText("☂",75f,16f,paint)}\n   if(weatherMood=="hot"){paint.textSize=25f;paint.color=Color.rgb(30,150,220);c.drawText("💦",100f,35f,paint);c.drawText("💦",17f,47f,paint)}\n   if(weatherMood=="sun"){paint.textSize=23f;c.drawText("☀",99f,20f,paint)}\n   if(mode=="rocket"){paint.textSize=48f;c.drawText("🚀",35f,78f,paint);paint.textSize=26f;c.drawText("🪖",45f,25f,paint);c.restoreToCount(save);return}
+   if(weatherMood=="rain"){paint.textSize=28f;paint.color=Color.BLUE;c.drawText("☂",75f,16f,paint)}
+   if(weatherMood=="hot"){paint.textSize=25f;paint.color=Color.rgb(30,150,220);c.drawText("💦",100f,35f,paint);c.drawText("💦",17f,47f,paint)}
+   if(weatherMood=="sun"){paint.textSize=23f;c.drawText("☀",99f,20f,paint)}
+   if(mode=="rocket"){paint.textSize=48f;c.drawText("🚀",35f,78f,paint);paint.textSize=26f;c.drawText("🪖",45f,25f,paint);c.restoreToCount(save);return}
    if(flip){c.scale(-1f,1f,64f,56f)}
    if(mode=="eat"){paint.textSize=23f;c.drawText("🌱",10f,103f,paint)}
    if(mode=="drink"){oval(c,Color.rgb(90,205,236),5f,94f,56f,105f)}
