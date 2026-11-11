@@ -66,8 +66,8 @@ class PetOverlayService : Service() {
    val width=resources.displayMetrics.widthPixels
    val height=resources.displayMetrics.heightPixels
    if(mode!="rocket"&&(params.x<0||params.x>width-params.width)){vx=-vx;duck.flip=vx<0}
-   if(mode=="abduct" && ticks in 25..62) params.y-=2.2f
-   if(mode=="abduct" && ticks in 63..91) params.y-=9f
+   if(mode=="abduct" && ticks in 25..62) params.y-=2
+   if(mode=="abduct" && ticks in 63..91) params.y-=9
    if(mode=="abduct" && ticks>91){mode="walk";ticks=0;params.y=((height*.46f).toInt()-params.height).coerceAtLeast(25);vx=if(Random.nextBoolean())5f else -5f}
    if(mode=="rocket"&&params.y < -150){params.y=(height*.34f).toInt();params.x=Random.nextInt(20,(width-params.width).coerceAtLeast(21));mode="walk";charredUntil=System.currentTimeMillis()+3200L;vx=if(Random.nextBoolean())5f else -5f}
    if(mode=="walk"&&ticks%70==0){val r=Random.nextInt(100);mode=when{r<12->"sleep";r<23->"eat";r<33->"drink";r<43->"pee";r<51->"bath";r<63->"run";r<73->"jump";r<82->"hang";r<90->"rocket";r<96->"abduct";else->"walk"};ticks=0;if(mode=="rocket"){vx=0f;vy=-13f}else if(mode=="run"){vx=if(vx<0)-10f else 10f}else{vy=0f}}
