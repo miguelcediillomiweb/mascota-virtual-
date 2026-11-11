@@ -24,7 +24,7 @@ const css=`
 #mv-credit-run{position:fixed;z-index:2147483001;bottom:12px;left:0;display:flex;align-items:center;pointer-events:none;white-space:nowrap;filter:drop-shadow(0 3px 3px #0004);font-family:system-ui,sans-serif}
 #mv-credit-run.mv-credit-ltr{animation:mv-credit-ltr var(--mv-duration) linear forwards}
 #mv-credit-run.mv-credit-rtl{animation:mv-credit-rtl var(--mv-duration) linear forwards}
-#mv-credit-run .mv-credit-pet{font-size:42px;line-height:1;z-index:2}
+#mv-credit-run .mv-credit-pet{width:54px;height:52px;line-height:1;z-index:2}#mv-credit-run .mv-credit-pet svg{width:100%;height:100%;overflow:visible}
 #mv-credit-run .mv-credit-ribbon{background:linear-gradient(180deg,#fff5c7,#f4d77a);color:#38250a;border:2px solid #7b4b17;padding:7px 13px;font-weight:800;font-size:14px;transform-origin:left center;animation:mv-credit-unroll .65s ease-out both}
 #mv-credit-run.mv-credit-rtl .mv-credit-ribbon{transform-origin:right center}
 @keyframes mv-credit-ltr{from{transform:translateX(-120%)}to{transform:translateX(105vw)}}
@@ -49,7 +49,7 @@ function creatorFlyby(){
  const ltr=Math.random()<.5,fly=document.createElement('div');
  fly.id='mv-credit-run';fly.className=ltr?'mv-credit-ltr':'mv-credit-rtl';
  fly.style.setProperty('--mv-duration',Math.max(7,innerWidth/95)+'s');
- const runner=document.createElement('span');runner.className='mv-credit-pet';runner.textContent='🐑';
+ const runner=document.createElement('span');runner.className='mv-credit-pet';runner.innerHTML=pet.querySelector('svg').outerHTML;
  const ribbon=document.createElement('span');ribbon.className='mv-credit-ribbon';ribbon.textContent='Creado por Miguel Cedillo';
  if(ltr)fly.append(ribbon,runner);else fly.append(runner,ribbon);
  document.body.appendChild(fly);fly.addEventListener('animationend',()=>fly.remove(),{once:true});
