@@ -9,60 +9,53 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.Manifest
 import android.content.pm.PackageManager
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.widget.*
 import android.view.Gravity
-import android.widget.Toast
 
 class MainActivity : Activity() {
  private val requestNotifications=41
- override fun onCreate(savedInstanceState: Bundle?) {
-  super.onCreate(savedInstanceState)
-  showSetup()
- }
+ private lateinit var layout: LinearLayout
+ private lateinit var person: EditText
+ private lateinit var petName: EditText
+ override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); showSetup() }
  private fun showSetup(){
-  val layout=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; gravity=Gravity.CENTER; setPadding(28,28,28,28) }
-  layout.addView(TextView(this).apply { text="🐑 Mascota Virtual\n\nTu mascota pasea sin bloquear los botones de otras aplicaciones. Para moverla manualmente, activa el modo de agarre durante 15 segundos.\n\n1. Mostrar sobre otras aplicaciones.\n2. Permitir actividad sin optimización de batería.\n3. Notificaciones del servicio para que Android sepa que sigue activo."; textSize=17f; gravity=Gravity.CENTER })
-  fun addButton(label:String,action:()->Unit){ layout.addView(Button(this).apply{text=label;setOnClickListener{action()}}) }
-  addButton("1 · Permitir superposición") {
-   if(!Settings.canDrawOverlays(this)) startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-   else Toast.makeText(this,"Superposición ya permitida",Toast.LENGTH_SHORT).show()
+  layout=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; gravity=Gravity.CENTER; setPadding(26,24,26,24) }
+  layout.addView(TextView(this).apply { text="🐏 Soy tu compañero\n\n¡Hola! Soy un carnerito y voy a acompañarte por la pantalla. Primero quiero conocerte."; textSize=21f; gravity=Gravity.CENTER })
+  person=EditText(this).apply { hint="¿Cómo te llamas?"; setSingleLine(true); setText(getSharedPreferences("pet",0).getString("person","")) }
+  petName=EditText(this).apply { hint="¿Cómo quieres que me llame?"; setSingleLine(true); setText(getSharedPreferences("pet",0).getString("petName","")) }
+  layout.addView(person);layout.addView(petName)
+  addButton("Guardar nombres") {
+   val p=person.text.toString().trim();val n=petName.text.toString().trim()
+   if(p.isBlank()){person.error="Dime cómo te llamas";return@addButton}
+   getSharedPreferences("pet",0).edit().putString("person",p).putString("petName",n.ifBlank{"Compañero"}).apply()
+   Toast.makeText(this,"¡Mucho gusto, $p!",Toast.LENGTH_SHORT).show()
   }
-  addButton("2 · Permitir uso sin optimización de batería") {
+  layout.addView(TextView(this).apply { text="\nPara que pueda acompañarte incluso cuando cambies de aplicación, activa estos permisos. Android siempre te pedirá confirmarlos."; textSize=15f })
+  addButton("1 · Permitir aparecer sobre otras aplicaciones") {
+   if(!Settings.canDrawOverlays(this)) startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName")))
+   else Toast.makeText(this,"Permiso de superposición concedido",Toast.LENGTH_SHORT).show()
+  }
+  addButton("2 · Permitir actividad sin restricciones de batería") {
    val pm=getSystemService(POWER_SERVICE) as PowerManager
-   if(Build.VERSION.SDK_INT>=23 && !pm.isIgnoringBatteryOptimizations(packageName)){
-    try { startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))) }
-    catch(_:Exception){ startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
-   } else Toast.makeText(this,"La batería ya permite actividad sin optimización",Toast.LENGTH_SHORT).show()
+   if(Build.VERSION.SDK_INT>=23&&!pm.isIgnoringBatteryOptimizations(packageName)){
+    try{startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,Uri.parse("package:$packageName")))}
+    catch(_:Exception){startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))}
+   }else Toast.makeText(this,"La batería ya está configurada",Toast.LENGTH_SHORT).show()
   }
-  addButton("4 · Agarrar y mover mascota (15 segundos)") {
-   val i=Intent(this,PetOverlayService::class.java).setAction("ENABLE_DRAG_MODE")
-   try {
-    if(Build.VERSION.SDK_INT>=26) startForegroundService(i) else startService(i)
-    Toast.makeText(this,"Modo para agarrarla activado durante 15 segundos. Después vuelve a ser invisible a los toques.",Toast.LENGTH_LONG).show()
-   } catch(e:Exception){Toast.makeText(this,"Abre primero la mascota: ${e.message}",Toast.LENGTH_LONG).show()}
-  }
-  addButton("3 · Activar mascota flotante") {
-   if(!Settings.canDrawOverlays(this)){Toast.makeText(this,"Primero concede el permiso de superposición",Toast.LENGTH_LONG).show();return@addButton}
-   val pm=getSystemService(POWER_SERVICE) as PowerManager
-   if(Build.VERSION.SDK_INT>=23 && !pm.isIgnoringBatteryOptimizations(packageName)){
-    Toast.makeText(this,"Activa también el permiso de batería para mayor continuidad",Toast.LENGTH_LONG).show();return@addButton
-   }
-   if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){
-    requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),requestNotifications);return@addButton
-   }
+  addButton("3 · Activar avisos de mensajes y clima (opcional)") { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+  addButton("4 · Activar a mi compañero") {
+   if(person.text.toString().trim().isNotEmpty()) getSharedPreferences("pet",0).edit().putString("person",person.text.toString().trim()).putString("petName",petName.text.toString().trim().ifBlank{"Compañero"}).apply()
+   if(!Settings.canDrawOverlays(this)){Toast.makeText(this,"Primero activa la superposición",Toast.LENGTH_LONG).show();return@addButton}
+   if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),requestNotifications);return@addButton}
    startPet()
   }
-  setContentView(layout)
+  addButton("Agarrar y mover (15 segundos)") {
+   val i=Intent(this,PetOverlayService::class.java).setAction("ENABLE_DRAG_MODE")
+   if(Build.VERSION.SDK_INT>=26)startForegroundService(i) else startService(i)
+  }
+  setContentView(ScrollView(this).apply{addView(layout)})
  }
- override fun onResume(){super.onResume()}
- override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray){
-  super.onRequestPermissionsResult(requestCode,permissions,grantResults)
-  if(requestCode==requestNotifications){ if(Settings.canDrawOverlays(this)) startPet() else showSetup() }
- }
- private fun startPet(){
-  try { val i=Intent(this,PetOverlayService::class.java); if(Build.VERSION.SDK_INT>=26) startForegroundService(i) else startService(i); Toast.makeText(this,"¡Tu mascota ya está paseando!",Toast.LENGTH_SHORT).show();finish() }
-  catch(e:Exception){Toast.makeText(this,"No se pudo iniciar: ${e.message}",Toast.LENGTH_LONG).show()}
- }
+ private fun addButton(label:String,action:()->Unit){layout.addView(Button(this).apply{text=label;setOnClickListener{action()}})}
+ private fun startPet(){val i=Intent(this,PetOverlayService::class.java);if(Build.VERSION.SDK_INT>=26)startForegroundService(i)else startService(i);Toast.makeText(this,"¡Hola! Ya estoy contigo 🐏",Toast.LENGTH_SHORT).show();finish()}
+ override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray){super.onRequestPermissionsResult(requestCode,permissions,grantResults);if(requestCode==requestNotifications&&Settings.canDrawOverlays(this))startPet()}
 }
