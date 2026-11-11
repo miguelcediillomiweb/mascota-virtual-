@@ -22,6 +22,8 @@ class PetOverlayService : Service() {
  private var vy=0f
  private var mode="walk"
  private var ticks=0
+ private var charredUntil=0L
+ private var lastNoticeAt=0L
  private var speechText=""
  private var speechUntil=0L
  private var weatherMood=""
@@ -29,7 +31,7 @@ class PetOverlayService : Service() {
  private val speechHandler=Handler(Looper.getMainLooper())
  private fun speak(message:String){speechText=message;speechUntil=System.currentTimeMillis()+6500;if(::duck.isInitialized)duck.invalidate()}
  private fun setWeather(mood:String){weatherMood=mood;weatherReset.removeCallbacksAndMessages(null);weatherReset.postDelayed({weatherMood="";if(::duck.isInitialized)duck.invalidate()},18_000L);if(::duck.isInitialized)duck.invalidate()}
- private val eventReceiver=object:BroadcastReceiver(){override fun onReceive(context:Context?,intent:Intent?){when(intent?.getStringExtra("kind")){ "NEW_MESSAGES"->{if(Random.nextInt(100)<65)speak("Hola, tienes nuevos mensajes 💬")} "WEATHER"->{val t=intent.getStringExtra("weatherText").orEmpty();val rain=listOf("lluv","torment","lloviz","precipit").any{t.contains(it)};val hot=listOf("calor","temperatura").any{t.contains(it)};setWeather(if(rain)"rain" else if(hot)"hot" else "sun");speak(when{rain->"Parece que puede llover. ¡Paraguas! ☔";hot->"¡Qué calor! Estoy sudando ☀️";else->"¡Actualización del clima! 🌤️"})} } }}
+ private val eventReceiver=object:BroadcastReceiver(){override fun onReceive(context:Context?,intent:Intent?){val now=System.currentTimeMillis();if(now-lastNoticeAt<4*60_000L)return;when(intent?.getStringExtra("kind")){ "NEW_MESSAGES"->{if(Random.nextInt(100)<65){lastNoticeAt=now;speak("Hola, tienes nuevos mensajes 💬")}} "MISSED_CALL"->{lastNoticeAt=now;speak("Hola, tienes una llamada perdida 📞")} "ALARM"->{lastNoticeAt=now;speak("¡Tu alarma está sonando! ⏰")} "WEATHER"->{val t=intent.getStringExtra("weatherText").orEmpty();val rain=listOf("lluv","torment","lloviz","precipit").any{t.contains(it)};val hot=listOf("calor","temperatura").any{t.contains(it)};setWeather(if(rain)"rain" else if(hot)"hot" else "sun");lastNoticeAt=now;speak(when{rain->"Parece que puede llover. ¡Paraguas! ☔";hot->"¡Qué calor! Estoy sudando ☀️";else->"¡Actualización del clima! 🌤️"})} } }}
  private val greetingLoop=object:Runnable{override fun run(){if(!::duck.isInitialized)return;val person=getSharedPreferences("pet",MODE_PRIVATE).getString("person","amigo")?: "amigo";val hour=Calendar.getInstance().get(Calendar.HOUR_OF_DAY);speak(when{hour>=21->"Hola $person, recuerda descansar. Mañana será otro día 💤";hour>=12->"Hola $person, ¿cómo va tu día?";else->"Hola $person, ¡que tengas un buen día!"});speechHandler.postDelayed(this,35*60_000L+Random.nextLong(45*60_000L))}}
  private val loop=object:Runnable { override fun run(){ step(); handler.postDelayed(this,45) } }
 
@@ -55,13 +57,13 @@ class PetOverlayService : Service() {
  private fun step(){
   ticks++
   if(mode=="sleep"){if(ticks>95){mode="walk";ticks=0;vx=if(Random.nextBoolean())5f else -5f};duck.mode=mode;duck.invalidate();try{wm.updateViewLayout(duck,params)}catch(_:Exception){};return}
-  if(mode=="walk"||mode=="run"||mode=="rocket"||mode=="fall"||mode=="stunned"){
+  if(mode in listOf("walk","run","rocket","fall","stunned","eat","drink","pee","bath","jump","hang")){
    params.x+=(vx*(if(mode=="run")2.8f else 1f)).toInt()
    params.y+=vy.toInt()
    val width=resources.displayMetrics.widthPixels
    val height=resources.displayMetrics.heightPixels
-   if(mode!="rocket"&&(params.x<0||params.x>width-144)){vx=-vx;duck.flip=vx<0}
-   if(mode=="rocket"&&params.y < -150){params.y=height-260;params.x=Random.nextInt(20,(width-160).coerceAtLeast(21));mode="walk";vx=if(Random.nextBoolean())5f else -5f}
+   if(mode!="rocket"&&(params.x<0||params.x>width-params.width)){vx=-vx;duck.flip=vx<0}
+   if(mode=="rocket"&&params.y < -150){params.y=(height*.34f).toInt();params.x=Random.nextInt(20,(width-params.width).coerceAtLeast(21));mode="walk";charredUntil=System.currentTimeMillis()+3200L;vx=if(Random.nextBoolean())5f else -5f}
    if(mode=="walk"&&ticks%70==0){val r=Random.nextInt(100);mode=when{r<12->"sleep";r<23->"eat";r<33->"drink";r<43->"pee";r<51->"bath";r<63->"run";r<73->"jump";r<82->"hang";r<90->"rocket";else->"walk"};ticks=0;if(mode=="rocket"){vx=0f;vy=-13f}else if(mode=="run"){vx=if(vx<0)-10f else 10f}else{vy=0f}}
    if(mode=="run"&&ticks>22){mode="walk";vx=if(vx<0)-5f else 5f;ticks=0}
    if(mode=="rocket"&&ticks%7==0)params.y-=8
