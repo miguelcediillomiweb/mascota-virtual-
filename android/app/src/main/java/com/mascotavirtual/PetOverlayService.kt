@@ -80,7 +80,7 @@ class PetOverlayService : Service() {
    }
    if(mode=="stunned"&&ticks>18){mode="walk";ticks=0;vy=0f}
   }
-  params.y=params.y.coerceIn(24,((resources.displayMetrics.heightPixels*.46f).toInt()-params.height).coerceAtLeast(25))
+  params.y=params.y.coerceIn(if(mode=="rocket")-180 else 24,((resources.displayMetrics.heightPixels*.46f).toInt()-params.height).coerceAtLeast(25))
   duck.mode=mode;duck.invalidate()
   try{wm.updateViewLayout(duck,params)}catch(_:Exception){}
  }
