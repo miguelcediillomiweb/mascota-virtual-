@@ -50,9 +50,12 @@ class PetOverlayService : Service() {
  private var ticks=0
  private var speechText=""
  private var speechUntil=0L
+ private var weatherMood=""
+ private val weatherReset=Handler(Looper.getMainLooper())
  private val speechHandler=Handler(Looper.getMainLooper())
  private fun speak(message:String){speechText=message;speechUntil=System.currentTimeMillis()+6500;if(::duck.isInitialized)duck.invalidate()}
- private val eventReceiver=object:BroadcastReceiver(){override fun onReceive(context:Context?,intent:Intent?){when(intent?.getStringExtra("kind")){ "NEW_MESSAGES"->{if(Random.nextInt(100)<65)speak("Hola, tienes nuevos mensajes 💬")} "WEATHER"->{val t=intent.getStringExtra("weatherText").orEmpty();speak(when{listOf("lluv","torment","lloviz","precipit").any{t.contains(it)}->"Parece que puede llover. ¡Paraguas! ☔";listOf("calor","temperatura").any{t.contains(it)}->"¡Qué calor! Estoy sudando ☀️";else->"¡Actualización del clima! 🌤️"})} } }}
+ private fun setWeather(mood:String){weatherMood=mood;weatherReset.removeCallbacksAndMessages(null);weatherReset.postDelayed({weatherMood="";if(::duck.isInitialized)duck.invalidate()},18_000L);if(::duck.isInitialized)duck.invalidate()}
+ private val eventReceiver=object:BroadcastReceiver(){override fun onReceive(context:Context?,intent:Intent?){when(intent?.getStringExtra("kind")){ "NEW_MESSAGES"->{if(Random.nextInt(100)<65)speak("Hola, tienes nuevos mensajes 💬")} "WEATHER"->{val t=intent.getStringExtra("weatherText").orEmpty();val rain=listOf("lluv","torment","lloviz","precipit").any{t.contains(it)};val hot=listOf("calor","temperatura").any{t.contains(it)};setWeather(if(rain)"rain" else if(hot)"hot" else "sun");speak(when{rain->"Parece que puede llover. ¡Paraguas! ☔";hot->"¡Qué calor! Estoy sudando ☀️";else->"¡Actualización del clima! 🌤️"})} } }}
  private val greetingLoop=object:Runnable{override fun run(){if(!::duck.isInitialized)return;val person=getSharedPreferences("pet",MODE_PRIVATE).getString("person","amigo")?: "amigo";val hour=Calendar.getInstance().get(Calendar.HOUR_OF_DAY);speak(when{hour>=21->"Hola $person, recuerda descansar. Mañana será otro día 💤";hour>=12->"Hola $person, ¿cómo va tu día?";else->"Hola $person, ¡que tengas un buen día!"});speechHandler.postDelayed(this,35*60_000L+Random.nextLong(45*60_000L))}}
  private var dragging=false
  private var lastRawX=0f
@@ -126,7 +129,7 @@ class PetOverlayService : Service() {
   if(intent?.action=="ENABLE_DRAG_MODE")setDragMode(true)
   return START_STICKY
  }
- override fun onDestroy(){try{unregisterReceiver(eventReceiver)}catch(_:Exception){};speechHandler.removeCallbacksAndMessages(null);handler.removeCallbacks(loop);dragModeHandler.removeCallbacksAndMessages(null);promoHandler.removeCallbacksAndMessages(null);try{wm.removeView(duck);wm.removeView(promoView)}catch(_:Exception){};super.onDestroy()}
+ override fun onDestroy(){try{unregisterReceiver(eventReceiver)}catch(_:Exception){};speechHandler.removeCallbacksAndMessages(null);weatherReset.removeCallbacksAndMessages(null);handler.removeCallbacks(loop);dragModeHandler.removeCallbacksAndMessages(null);promoHandler.removeCallbacksAndMessages(null);try{wm.removeView(duck);wm.removeView(promoView)}catch(_:Exception){};super.onDestroy()}
 
  inner class PromoView:View(this@PetOverlayService){
   private val p=Paint(Paint.ANTI_ALIAS_FLAG)
@@ -151,7 +154,7 @@ class PetOverlayService : Service() {
   private fun oval(c:Canvas,color:Int,l:Float,t:Float,r:Float,b:Float){paint.color=color;c.drawOval(l,t,r,b,paint)}
   override fun onDraw(canvas:Canvas){
    super.onDraw(canvas);val c=canvas;val save=c.save();c.scale(width/128f,height/112f)
-   if(mode=="rocket"){paint.textSize=48f;c.drawText("🚀",35f,78f,paint);paint.textSize=26f;c.drawText("🪖",45f,25f,paint);c.restoreToCount(save);return}
+   if(weatherMood=="rain"){paint.textSize=28f;paint.color=Color.BLUE;c.drawText("☂",75f,16f,paint)}\n   if(weatherMood=="hot"){paint.textSize=25f;paint.color=Color.rgb(30,150,220);c.drawText("💦",100f,35f,paint);c.drawText("💦",17f,47f,paint)}\n   if(weatherMood=="sun"){paint.textSize=23f;c.drawText("☀",99f,20f,paint)}\n   if(mode=="rocket"){paint.textSize=48f;c.drawText("🚀",35f,78f,paint);paint.textSize=26f;c.drawText("🪖",45f,25f,paint);c.restoreToCount(save);return}
    if(flip){c.scale(-1f,1f,64f,56f)}
    if(mode=="eat"){paint.textSize=23f;c.drawText("🌱",10f,103f,paint)}
    if(mode=="drink"){oval(c,Color.rgb(90,205,236),5f,94f,56f,105f)}
