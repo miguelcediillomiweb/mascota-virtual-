@@ -18,6 +18,8 @@ class PetNotificationListener : NotificationListenerService() {
      listOf("lluv","torment","lloviz","precipit","calor","temperatura","clima","soleado").any{text.contains(it)} -> "WEATHER"
    else -> return
   }
-  sendBroadcast(Intent("com.mascotavirtual.EVENT").setPackage(packageName).putExtra("kind",action).putExtra("weatherText",text.take(160)))
+  val event=Intent("com.mascotavirtual.EVENT").setPackage(packageName).putExtra("kind",action)
+  if(action=="WEATHER")event.putExtra("weatherText",text.take(160))
+  sendBroadcast(event)
  }
 }
