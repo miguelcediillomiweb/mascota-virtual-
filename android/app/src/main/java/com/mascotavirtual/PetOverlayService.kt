@@ -48,6 +48,12 @@ class PetOverlayService : Service() {
  private var vy=0f
  private var mode="walk"
  private var ticks=0
+ private var speechText=""
+ private var speechUntil=0L
+ private val speechHandler=Handler(Looper.getMainLooper())
+ private fun speak(message:String){speechText=message;speechUntil=System.currentTimeMillis()+6500;if(::duck.isInitialized)duck.invalidate()}
+ private val eventReceiver=object:BroadcastReceiver(){override fun onReceive(context:Context?,intent:Intent?){when(intent?.getStringExtra("kind")){ "NEW_MESSAGES"->{if(Random.nextInt(100)<65)speak("Hola, tienes nuevos mensajes 💬")} "WEATHER"->{val t=intent.getStringExtra("weatherText").orEmpty();speak(when{listOf("lluv","torment","lloviz","precipit").any{t.contains(it)}->"Parece que puede llover. ¡Paraguas! ☔";listOf("calor","temperatura").any{t.contains(it)}->"¡Qué calor! Estoy sudando ☀️";else->"¡Actualización del clima! 🌤️"})} } }}
+ private val greetingLoop=object:Runnable{override fun run(){if(!::duck.isInitialized)return;val person=getSharedPreferences("pet",MODE_PRIVATE).getString("person","amigo")?: "amigo";val hour=Calendar.getInstance().get(Calendar.HOUR_OF_DAY);speak(when{hour>=21->"Hola $person, recuerda descansar. Mañana será otro día 💤";hour>=12->"Hola $person, ¿cómo va tu día?";else->"Hola $person, ¡que tengas un buen día!"});speechHandler.postDelayed(this,35*60_000L+Random.nextLong(45*60_000L))}}
  private var dragging=false
  private var lastRawX=0f
  private var lastRawY=0f
@@ -74,9 +80,11 @@ class PetOverlayService : Service() {
   wm=getSystemService(WINDOW_SERVICE) as WindowManager
   duck=DuckView()
   val type=if(Build.VERSION.SDK_INT>=26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-  params=WindowManager.LayoutParams(144,132,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;x=80;y=260}
+  params=WindowManager.LayoutParams(112,104,type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START;x=80;y=260}
   try{
    wm.addView(duck,params)
+   if(Build.VERSION.SDK_INT>=33)registerReceiver(eventReceiver,IntentFilter("com.mascotavirtual.EVENT"),Context.RECEIVER_NOT_EXPORTED) else registerReceiver(eventReceiver,IntentFilter("com.mascotavirtual.EVENT"))
+   speechHandler.postDelayed(greetingLoop,30*60_000L+Random.nextLong(25*60_000L))
    promoView=PromoView()
    val fullType=if(Build.VERSION.SDK_INT>=26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
    promoParams=WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT,fullType,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT).apply{gravity=Gravity.TOP or Gravity.START}
@@ -87,6 +95,7 @@ class PetOverlayService : Service() {
  private fun step(){
   if(dragging)return
   ticks++
+  if(mode=="sleep"){if(ticks>95){mode="walk";ticks=0;vx=if(Random.nextBoolean())5f else -5f};duck.mode=mode;duck.invalidate();try{wm.updateViewLayout(duck,params)}catch(_:Exception){};return}
   if(mode=="walk"||mode=="run"||mode=="rocket"||mode=="fall"||mode=="stunned"){
    params.x+=(vx*(if(mode=="run")2.8f else 1f)).toInt()
    params.y+=vy.toInt()
@@ -117,7 +126,7 @@ class PetOverlayService : Service() {
   if(intent?.action=="ENABLE_DRAG_MODE")setDragMode(true)
   return START_STICKY
  }
- override fun onDestroy(){handler.removeCallbacks(loop);dragModeHandler.removeCallbacksAndMessages(null);promoHandler.removeCallbacksAndMessages(null);try{wm.removeView(duck);wm.removeView(promoView)}catch(_:Exception){};super.onDestroy()}
+ override fun onDestroy(){try{unregisterReceiver(eventReceiver)}catch(_:Exception){};speechHandler.removeCallbacksAndMessages(null);handler.removeCallbacks(loop);dragModeHandler.removeCallbacksAndMessages(null);promoHandler.removeCallbacksAndMessages(null);try{wm.removeView(duck);wm.removeView(promoView)}catch(_:Exception){};super.onDestroy()}
 
  inner class PromoView:View(this@PetOverlayService){
   private val p=Paint(Paint.ANTI_ALIAS_FLAG)
@@ -160,6 +169,7 @@ class PetOverlayService : Service() {
    if(mode=="hang"){c.rotate(85f,64f,20f)}
    if(mode=="fall"||mode=="stunned")c.rotate(80f,64f,65f)
    c.restore();c.restoreToCount(save)
+   if(System.currentTimeMillis()<speechUntil && speechText.isNotBlank()){val pp=Paint(Paint.ANTI_ALIAS_FLAG);pp.color=Color.WHITE;pp.textSize=12f;pp.typeface=Typeface.create("sans-serif",Typeface.BOLD);val msg=speechText.take(38);val tw=pp.measureText(msg);c.drawRoundRect(0f,0f,tw+20f,28f,9f,9f,pp);pp.color=Color.DKGRAY;c.drawText(msg,10f,19f,pp)}
   }
   override fun onTouchEvent(e:android.view.MotionEvent):Boolean{
    when(e.action){
