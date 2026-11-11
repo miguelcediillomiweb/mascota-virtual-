@@ -23,7 +23,7 @@ class MainActivity : Activity() {
  }
  private fun showSetup(){
   val layout=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; gravity=Gravity.CENTER; setPadding(28,28,28,28) }
-  layout.addView(TextView(this).apply { text="🐑 Mascota Virtual\n\nPara que tu compañerita pueda pasear por encima de WhatsApp, Chrome y otras aplicaciones, activa estos permisos.\n\n1. Mostrar sobre otras aplicaciones.\n2. Permitir actividad sin optimización de batería.\n3. Notificaciones del servicio para que Android sepa que sigue activo."; textSize=17f; gravity=Gravity.CENTER })
+  layout.addView(TextView(this).apply { text="🐑 Mascota Virtual\n\nTu mascota pasea sin bloquear los botones de otras aplicaciones. Para moverla manualmente, activa el modo de agarre durante 15 segundos.\n\n1. Mostrar sobre otras aplicaciones.\n2. Permitir actividad sin optimización de batería.\n3. Notificaciones del servicio para que Android sepa que sigue activo."; textSize=17f; gravity=Gravity.CENTER })
   fun addButton(label:String,action:()->Unit){ layout.addView(Button(this).apply{text=label;setOnClickListener{action()}}) }
   addButton("1 · Permitir superposición") {
    if(!Settings.canDrawOverlays(this)) startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
@@ -35,6 +35,13 @@ class MainActivity : Activity() {
     try { startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))) }
     catch(_:Exception){ startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
    } else Toast.makeText(this,"La batería ya permite actividad sin optimización",Toast.LENGTH_SHORT).show()
+  }
+  addButton("4 · Agarrar y mover mascota (15 segundos)") {
+   val i=Intent(this,PetOverlayService::class.java).setAction("ENABLE_DRAG_MODE")
+   try {
+    if(Build.VERSION.SDK_INT>=26) startForegroundService(i) else startService(i)
+    Toast.makeText(this,"Modo para agarrarla activado durante 15 segundos. Después vuelve a ser invisible a los toques.",Toast.LENGTH_LONG).show()
+   } catch(e:Exception){Toast.makeText(this,"Abre primero la mascota: ${e.message}",Toast.LENGTH_LONG).show()}
   }
   addButton("3 · Activar mascota flotante") {
    if(!Settings.canDrawOverlays(this)){Toast.makeText(this,"Primero concede el permiso de superposición",Toast.LENGTH_LONG).show();return@addButton}
